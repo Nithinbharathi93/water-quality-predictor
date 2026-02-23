@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaHazard | Neural Water Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            background-color: #0f0a0a; 
+            background-image: radial-gradient(#1a1414 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Base Transitions */
+        #results, #statusCard, .analysis-box {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- THEME: HAZARD (RED/RUST) --- */
+        .theme-hazard .analysis-box { background-color: #1e110b; border-color: #451a03; }
+        .theme-hazard .status-border { border-color: #dc2626; background-color: rgba(69, 26, 3, 0.4); color: #f87171; }
+        .theme-hazard .prose h3 { color: #f97316; border-bottom: 1px solid #451a03; }
+        .theme-hazard .prose strong { color: #f87171; }
+        .theme-hazard .prose th { background-color: #451a03; color: #fca5a5; }
+        .theme-hazard .scanline { background-color: rgba(220, 38, 38, 0.15); }
+        .theme-hazard .report-icon { color: #dc2626; }
+
+        /* --- THEME: POTABLE (GREEN/EMERALD) --- */
+        .theme-potable .analysis-box { background-color: #0b1e15; border-color: #064e3b; }
+        .theme-potable .status-border { border-color: #10b981; background-color: rgba(6, 78, 59, 0.4); color: #6ee7b7; }
+        .theme-potable .prose h3 { color: #34d399; border-bottom: 1px solid #064e3b; }
+        .theme-potable .prose strong { color: #6ee7b7; }
+        .theme-potable .prose th { background-color: #064e3b; color: #a7f3d0; }
+        .theme-potable .scanline { background-color: rgba(16, 185, 129, 0.15); }
+        .theme-potable .report-icon { color: #10b981; }
+
+        /* Common Markdown Layout */
+        .prose h3 { font-weight: 800; font-size: 1.1rem; margin-top: 1.5rem; text-transform: uppercase; padding-bottom: 4px; }
+        .prose ul { list-style-type: square; margin-left: 1.5rem; color: #d1d5db; margin-bottom: 1rem; }
+        .prose table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.85rem; }
+        .prose th, .prose td { border: 1px solid rgba(255,255,255,0.05); padding: 12px; text-align: left; }
+        
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(800%); }
+        }
+        .scanline-anim { animation: scanline 6s linear infinite; }
+        .rust-gradient { background: linear-gradient(135deg, #b22222 0%, #8b4513 100%); }
+    </style>
+</head>
+<body class="min-h-screen text-slate-200 py-12 px-4 flex flex-col items-center">
+
+    <div class="w-full max-w-3xl">
+        <header class="text-center mb-10">
+            <div class="inline-block p-1 px-3 mb-4 border border-red-900 bg-red-950/50 text-red-500 font-mono text-[10px] uppercase tracking-[0.3em] animate-pulse">
+                Terminal Auth: Established
+            </div>
+            <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-500 via-orange-500 to-yellow-600 italic tracking-tighter uppercase">
+                Aqua Hazard
+            </h1>
+            <p class="text-orange-200/40 font-mono mt-3 uppercase text-[10px] tracking-[0.4em]">Neural Toxicity Detection Protocol</p>
+        </header>
+
+        <div class="flex justify-center mb-10">
+            <form id="waterForm" class="w-full bg-[#1a0f0a] p-8 border border-[#451a03] shadow-2xl relative">
+                <h2 class="text-orange-700 font-black mb-8 text-center tracking-[0.3em] text-xs uppercase flex items-center justify-center gap-4">
+                    <span class="h-[1px] w-8 bg-[#451a03]"></span>
+                    Manual Data Entry
+                    <span class="h-[1px] w-8 bg-[#451a03]"></span>
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5" id="inputContainer"></div>
+                <button type="submit" id="submitBtn" class="w-full mt-10 rust-gradient hover:brightness-110 active:scale-[0.98] text-white font-black py-4 uppercase tracking-[0.2em] transition-all">
+                    Initiate Molecular Scan
+                </button>
+            </form>
+        </div>
+
+        <div id="results" class="hidden space-y-8 animate-in fade-in duration-1000">
+            <div id="statusCard" class="p-8 border-2 text-center status-border">
+                <p class="text-[10px] font-mono uppercase opacity-60 tracking-widest mb-1">System Verdict</p>
+                <h2 id="predictionText" class="text-4xl font-black italic tracking-tight"></h2>
+            </div>
+
+            <div class="analysis-box border relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 scanline scanline-anim"></div>
+                <div class="p-8">
+                    <h2 class="text-xl font-black mb-8 flex items-center gap-3 border-b border-white/5 pb-4">
+                        <span class="report-icon">☢️</span> 
+                        <span class="uppercase tracking-widest text-slate-100">Toxicity Report</span>
+                    </h2>
+                    <div id="analysisContent" class="prose prose-invert max-w-none text-sm md:text-base leading-relaxed opacity-90"></div>
+                </div>
+            </div>
+            
+            <footer class="text-center pt-8 pb-12">
+                <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="text-[10px] font-mono text-slate-600 hover:text-orange-500 uppercase tracking-widest transition-colors">
+                    [ Clear Buffer ]
+                </button>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        const fields = [
+            { id: 'ph', label: 'pH Level', val: 7.2 },
+            { id: 'hardness', label: 'Hardness', val: 150 },
+            { id: 'solids', label: 'Total Solids', val: 320 },
+            { id: 'chloramines', label: 'Chloramines', val: 2.8 },
+            { id: 'sulfate', label: 'Sulfate', val: 180 },
+            { id: 'conductivity', label: 'Conductivity', val: 350 },
+            { id: 'organic_carbon', label: 'Organic Carbon', val: 2.5 },
+            { id: 'trihalomethanes', label: 'THM Level', val: 45.0 },
+            { id: 'turbidity', label: 'Turbidity', val: 0.8 }
+        ];
+
+        const container = document.getElementById('inputContainer');
+        fields.forEach(f => {
+            container.innerHTML += `
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold text-orange-900 uppercase tracking-widest mb-1 ml-1">${f.label}</label>
+                    <input type="number" step="any" id="${f.id}" value="${f.val}" required
+                        class="bg-black/40 border border-[#451a03] px-4 py-2.5 text-orange-100 focus:border-red-600 focus:outline-none transition-all font-mono text-sm">
+                </div>
+            `;
+        });
+
+        document.getElementById('waterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const resultsDiv = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.innerText = "Processing Neural Nodes...";
+
+            const payload = {};
+            fields.forEach(f => payload[f.id] = parseFloat(document.getElementById(f.id).value));
+
+            try {
+                const response = await fetch('http://localhost:5000/analyze-water', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                // Toggle Themes
+                const isHazard = data.prediction.includes("NON-POTABLE");
+                resultsDiv.classList.remove('hidden', 'theme-hazard', 'theme-potable');
+                resultsDiv.classList.add(isHazard ? 'theme-hazard' : 'theme-potable');
+
+                // Update Content
+                document.getElementById('predictionText').innerText = isHazard ? "CRITICAL HAZARD DETECTED" : "POTABLE / SYSTEM NOMINAL";
+                document.getElementById('analysisContent').innerHTML = marked.parse(data.analysis);
+                
+                setTimeout(() => resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+
+            } catch (err) {
+                alert("Comm-Link Failure.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Initiate Molecular Scan";
+            }
+        });
+    </script>
+</body>
+</html>
