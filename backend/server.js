@@ -2,13 +2,17 @@ import express from 'express';
 import cors from 'cors';
 import { spawn } from 'child_process';
 import { GoogleGenAI } from "@google/genai";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Initialize Gemini 3 (Flash Preview)
-const ai = new GoogleGenAI({ apiKey: "AIzaSyCyR9s_SwsT_mj7KB3OJwOVTkHZXLnrufk" });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 app.post('/analyze-water', async (req, res) => {
     const waterData = req.body;
